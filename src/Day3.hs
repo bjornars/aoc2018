@@ -1,6 +1,9 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TupleSections #-}
 
 module Day3 where
+
+import Data.Array
 
 import Control.Monad (when)
 import Data.Maybe (fromMaybe, isJust)
@@ -9,12 +12,9 @@ import Data.List (maximumBy, elemIndex)
 import Text.Read
 import Debug.Trace
 
-type Claim = ((Int, Int) -> Bool)
-between x dx a = a < (x + dx) && a >= x
 (...) = (.) . (.)
 
-claim :: (Int, Int, Int, Int) -> Claim
-claim (x, y, dx, dy) = \(a, b) -> between x dx a && between y dy b
+claimToList (x, y, dx, dy) = (, Sum 1) <$> range ((x, y), (x+dx-1, y+dy-1))
 
 parse :: String -> Maybe _
 parse line = case words line of
@@ -32,6 +32,11 @@ parseCoords start size = do
   let r = readMaybe :: String -> Maybe Int
   (,,,) <$> r x <*> r y <*> r dx <*> r dy
 
+fillArray :: Array (Int, Int) (Sum Int) -> [_] -> Array (Int, Int) (Sum Int)
+fillArray arr [] = arr
+fillArray arr (c:cs) =
+  fillArray (accum (<>) arr (claimToList c)) cs
+
 day3 :: IO ()
 day3 = do
   inputs <- lines <$> readFile "data/day3.txt"
@@ -40,11 +45,9 @@ day3 = do
     Just c -> do
       let maxX = maximum $ (\(x, _, dx, _) -> x + dx) <$> c
       let maxY = maximum $ (\(_, y, _, dy) -> y + dy) <$> c
-      let claims = ((Sum . fromEnum) ... claim) <$> c
-      let foo = length
-                $ filter ((>=2) .getSum)
-                [foldMap ($ (x, y)) claims
-                  | x <- [0..maxX + 1]
-                  , y <- [0..maxY + 1]]
-      print foo
+      let arr :: Array (Int, Int) (Sum Int)
+          arr = listArray ((0, 0), (maxX, maxY)) $ repeat (Sum 0)
+      let filled = fillArray arr c
+      -- print arr
+      print $ length $ filter ((>=2) . getSum) $ elems filled
     _ -> print "no parse"
