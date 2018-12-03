@@ -1,5 +1,3 @@
-{-# LANGUAGE PartialTypeSignatures #-}
-
 module Day3 where
 
 import Data.Array
@@ -9,30 +7,35 @@ import Control.Monad (forM_, when)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Monoid (Sum(..))
 import Data.List (intercalate, elemIndex)
-import Text.Read
-import Debug.Trace
+import Text.Read (readMaybe)
 
+(...) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (...) = (.) . (.)
+-- a ... b =  \x y -> a (b x y)
 
+type Claim = (Int, Int, Int, Int)
+type IX = (Int, Int)
+
+claimToList :: (Int, Int, Int, Int) -> [IX]
 claimToList (x, y, dx, dy) = range ((x, y), (x+dx-1, y+dy-1))
 
-parse :: String -> Maybe _
+parse :: String -> Maybe Claim
 parse line = case words line of
     [_, _, start, size] -> parseCoords (init start) size
     _ -> Nothing
 
-splitOn :: Char -> String -> _
+splitOn :: Char -> String -> Maybe (String, String)
 splitOn c str = (\idx -> (take idx str, drop (idx + 1) str))
                 <$> elemIndex c str
 
-parseCoords :: String -> String -> _
+parseCoords :: String -> String -> Maybe Claim
 parseCoords start size = do
   (x, y) <- splitOn ',' start
   (dx, dy) <- splitOn 'x' size
   let r = readMaybe :: String -> Maybe Int
   (,,,) <$> r x <*> r y <*> r dx <*> r dy
 
-fillArray :: ((Int, Int), (Int, Int)) -> [_] -> Array (Int, Int) (Sum Int)
+fillArray :: (IX, IX) -> [Claim] -> Array IX (Sum Int)
 fillArray ix cs = runSTArray $ do
   let indicies = cs >>= claimToList
   arr <- newArray ix 0
