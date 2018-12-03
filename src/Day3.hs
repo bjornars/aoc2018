@@ -1,5 +1,4 @@
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE TupleSections #-}
 
 module Day3 where
 
@@ -9,7 +8,7 @@ import Data.Array.ST
 import Control.Monad (forM_, when)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Monoid (Sum(..))
-import Data.List (maximumBy, elemIndex)
+import Data.List (intercalate, elemIndex)
 import Text.Read
 import Debug.Trace
 
@@ -24,7 +23,7 @@ parse line = case words line of
 
 splitOn :: Char -> String -> _
 splitOn c str = (\idx -> (take idx str, drop (idx + 1) str))
-                <$> (elemIndex c str)
+                <$> elemIndex c str
 
 parseCoords :: String -> String -> _
 parseCoords start size = do
@@ -42,14 +41,19 @@ fillArray ix cs = runSTArray $ do
     writeArray arr e (x + 1)
   return arr
 
+isSingle arr claim = all (==1) $ (arr !) <$> claimToList claim
+
 day3 :: IO ()
 day3 = do
   inputs <- lines <$> readFile "data/day3.txt"
   let parsed = traverse parse inputs
   case parsed of
+    Nothing -> print "no parse"
     Just c -> do
       let maxX = maximum $ (\(x, _, dx, _) -> x + dx) <$> c
       let maxY = maximum $ (\(_, y, _, dy) -> y + dy) <$> c
       let filled = fillArray ((0, 0), (maxX, maxY)) c
       print $ length $ filter ((>=2) . getSum) $ elems filled
-    _ -> print "no parse"
+      let singleClaims = snd <$> filter (isSingle filled . fst) (zip c [1..])
+      putStrLn $ "Proper claims: "
+        <> intercalate "," (("#" <>) . show <$> singleClaims)
