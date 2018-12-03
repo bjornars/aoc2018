@@ -4,8 +4,9 @@
 module Day3 where
 
 import Data.Array
+import Data.Array.ST
 
-import Control.Monad (when)
+import Control.Monad (forM_, when)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Monoid (Sum(..))
 import Data.List (maximumBy, elemIndex)
@@ -14,7 +15,7 @@ import Debug.Trace
 
 (...) = (.) . (.)
 
-claimToList (x, y, dx, dy) = (, Sum 1) <$> range ((x, y), (x+dx-1, y+dy-1))
+claimToList (x, y, dx, dy) = range ((x, y), (x+dx-1, y+dy-1))
 
 parse :: String -> Maybe _
 parse line = case words line of
@@ -32,10 +33,14 @@ parseCoords start size = do
   let r = readMaybe :: String -> Maybe Int
   (,,,) <$> r x <*> r y <*> r dx <*> r dy
 
-fillArray :: Array (Int, Int) (Sum Int) -> [_] -> Array (Int, Int) (Sum Int)
-fillArray arr [] = arr
-fillArray arr (c:cs) =
-  fillArray (accum (<>) arr (claimToList c)) cs
+fillArray :: ((Int, Int), (Int, Int)) -> [_] -> Array (Int, Int) (Sum Int)
+fillArray ix cs = runSTArray $ do
+  let indicies = cs >>= claimToList
+  arr <- newArray ix 0
+  indicies `forM_` \e -> do
+    x <- readArray arr e
+    writeArray arr e (x + 1)
+  return arr
 
 day3 :: IO ()
 day3 = do
@@ -45,9 +50,6 @@ day3 = do
     Just c -> do
       let maxX = maximum $ (\(x, _, dx, _) -> x + dx) <$> c
       let maxY = maximum $ (\(_, y, _, dy) -> y + dy) <$> c
-      let arr :: Array (Int, Int) (Sum Int)
-          arr = listArray ((0, 0), (maxX, maxY)) $ repeat (Sum 0)
-      let filled = fillArray arr c
-      -- print arr
+      let filled = fillArray ((0, 0), (maxX, maxY)) c
       print $ length $ filter ((>=2) . getSum) $ elems filled
     _ -> print "no parse"
