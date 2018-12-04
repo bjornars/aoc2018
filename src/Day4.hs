@@ -18,6 +18,10 @@ import Text.ParserCombinators.ReadP hiding (get)
 import Text.Read
 import qualified Text.ParserCombinators.ReadP as P
 
+fst3 = (^. _1) :: (a, b, c) -> a
+snd3 = (^. _2) :: (a, b, c) -> b
+thr3 = (^. _3) :: (a, b, c) -> c
+
 data Shift = Start String
            | Sleep Integer
            | Wakeup Integer deriving (Show)
@@ -61,6 +65,19 @@ sleeps (Wakeup time) = do
   b <- use bedtime
   slumbers %= ((g, time - b, b):)
 
+getBiggestNapper :: [(a, [Integer])] -> (a, [Integer])
+getBiggestNapper = maximumBy (compare `on` sum . snd)
+
+getNappiestMinute :: [(String, Integer, Integer)] -> _
+getNappiestMinute naps napper = let
+    sleepiest_minute =
+          map M.fromList $
+          map (\(_, dur, start) -> [(x, Sum 1) | x <- [start..dur+start-1]]) $
+          filter ((== napper) . fst3) naps
+    napmap = foldl' (M.unionWith (<>)) M.empty sleepiest_minute
+  in
+    maximumBy (compare `on` snd) $ M.toList napmap
+
 day4 :: IO ()
 day4 = do
   shifts <- traverse parse . lines <$> readFile "data/day4.txt"
@@ -70,19 +87,18 @@ day4 = do
       let sorted = map snd . sortBy (compare `on` fst) $ s
       let schedule = traverse sleeps sorted
       let initState = S "#-1" 0 []
-      let fst3 = (^. _1) :: (a, b, c) -> a
-      let snd3 = (^. _2) :: (a, b, c) -> b
-      let thr3 = (^. _3) :: (a, b, c) -> c
       let naps = execState schedule initState ^. slumbers
-      let naps_on_guard = groupBy ((==) `on` fst3) . sort $ naps
-      let naps_summed = (\x -> (fst3 (head x), sum $ map snd3 x)) <$> naps_on_guard
-      let (nappy_guard, total_napped) = maximumBy (compare `on` snd) naps_summed
-      let sleepiest_minute =
-            map M.fromList $
-            map (\(_, dur, start) -> [(x, Sum 1) | x <- [start..dur+start-1]]) $
-            filter ((== nappy_guard) . fst3) naps
-      let napmap = foldl' (M.unionWith (<>)) M.empty sleepiest_minute
-      let nappy_minute = fst $ maximumBy (compare `on` snd) $ M.toList napmap
+      let naps_summed =
+            (\x -> (fst3 (head x), map snd3 x))
+            <$> (groupBy ((==) `on` fst3) . sort $ naps)
+      let (nappy_guard, total_napped) = getBiggestNapper naps_summed
+      let nappy_minute = fst $ getNappiestMinute naps nappy_guard
       putStrLn $ nappy_guard <> " is sleepy"
       putStrLn $ show nappy_minute <> " is sleepy"
       print $ read @Integer (tail nappy_guard) * nappy_minute
+
+      let guards = fst <$> naps_summed
+      let nappy_minute_per_guard = (\g -> (g, getNappiestMinute naps g)) <$> guards
+      let (guard, (minute, (Sum _))) = maximumBy (compare `on` (snd . snd)) nappy_minute_per_guard
+      print (guard, minute)
+      print $ read @Integer (tail guard) * minute
