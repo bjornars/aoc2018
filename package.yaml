@@ -23,12 +23,14 @@ dependencies:
 - base >= 4.7 && < 5
 - containers
 - array
+- mtl
+- lens
 
 library:
   source-dirs: src
 
 executables:
-  aoc2018-exe:
+  aoc:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
