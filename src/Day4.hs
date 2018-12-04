@@ -5,6 +5,7 @@
 
 module Day4 where
 
+import Control.Arrow
 import Control.Lens
 import Control.Monad
 import Control.Monad.State
@@ -65,18 +66,21 @@ sleeps (Wakeup time) = do
   b <- use bedtime
   slumbers %= ((g, time - b, b):)
 
+by f g = f (compare `on` g)
+
 getBiggestNapper :: [(a, [Integer])] -> (a, [Integer])
-getBiggestNapper = maximumBy (compare `on` sum . snd)
+getBiggestNapper = maximumBy `by` (sum.snd)
 
 getNappiestMinute :: [(String, Integer, Integer)] -> _
 getNappiestMinute naps napper = let
+    mins (_, dur, start) =
+      (id &&& const (Sum 1))
+       <$> [start..dur+start-1]
     sleepiest_minute =
-          map M.fromList $
-          map (\(_, dur, start) -> [(x, Sum 1) | x <- [start..dur+start-1]]) $
-          filter ((== napper) . fst3) naps
-    napmap = foldl' (M.unionWith (<>)) M.empty sleepiest_minute
+          map (M.fromList . mins) . filter ((== napper) . fst3)
+    napmap = foldl' (M.unionWith (<>)) M.empty . sleepiest_minute
   in
-    maximumBy (compare `on` snd) $ M.toList napmap
+    maximumBy `by` snd $ M.toList $ napmap naps
 
 day4 :: IO ()
 day4 = do
@@ -84,21 +88,24 @@ day4 = do
   case shifts of
     Nothing -> print "Parse error"
     Just s -> do
-      let sorted = map snd . sortBy (compare `on` fst) $ s
-      let schedule = traverse sleeps sorted
+      let sorted = map snd . (sortBy `by` fst) $ s
       let initState = S "#-1" 0 []
-      let naps = execState schedule initState ^. slumbers
+      let naps = view slumbers
+                  $ flip execState initState
+                  $ traverse sleeps sorted
       let naps_summed =
-            (\x -> (fst3 (head x), map snd3 x))
+            (fst3 . head &&& map snd3)
             <$> (groupBy ((==) `on` fst3) . sort $ naps)
       let (nappy_guard, total_napped) = getBiggestNapper naps_summed
       let nappy_minute = fst $ getNappiestMinute naps nappy_guard
+
       putStrLn $ nappy_guard <> " is sleepy"
       putStrLn $ show nappy_minute <> " is sleepy"
       print $ read @Integer (tail nappy_guard) * nappy_minute
 
       let guards = fst <$> naps_summed
-      let nappy_minute_per_guard = (\g -> (g, getNappiestMinute naps g)) <$> guards
-      let (guard, (minute, (Sum _))) = maximumBy (compare `on` (snd . snd)) nappy_minute_per_guard
+      let nappy_minute_per_guard = (id &&& getNappiestMinute naps ) <$> guards
+      let (guard, (minute, (Sum _))) = maximumBy `by` (snd.snd) $ nappy_minute_per_guard
+
       print (guard, minute)
       print $ read @Integer (tail guard) * minute
