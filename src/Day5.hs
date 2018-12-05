@@ -26,3 +26,6 @@ day5 = do
   when (reactive 'a' 'a' || reactive 'A' 'A' || reactive 'a' 'b') $ putStrLn "ERROR"
   input <- filter isLetter <$> readFile "data/day5.txt"
   putStrLn ("Part1: " <> show (length $ recWhile react input))
+  let alternatives = (\x -> filter ((/= x).toLower) input) <$> ['a'..'z']
+  let best = minimum (length . recWhile react <$> alternatives)
+  putStrLn ("Part2: " <> show best)
