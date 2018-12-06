@@ -53,6 +53,9 @@ corners ((x1, y1), (x2, y2)) = mconcat [
   [(x1, y) | y <- [y1+1..y2-1]],
   [(x2, y) | y <- [y1+1..y2-1]]]
 
+sumDistance :: [Point] -> Point -> Int
+sumDistance points o = sum $ distance o <$> points
+
 day6 :: IO ()
 day6 = do
   input <- lines <$> readFile "data/day6.txt"
@@ -79,3 +82,6 @@ day6 = do
   -- and make nice debug file
   let rows = (map.map) (fromMaybe '.' . snd ) $ groupBy ((==) `on` (fst.fst)) $ assocs cleanArr
   writeFile "/tmp/outputs" $ unlines rows
+
+  let distanceSums = sumDistance points <$> range b
+  putStrLn $ "Part 1: " <> (show . length . filter (<10000) $ distanceSums)
