@@ -1,9 +1,10 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -Wall #-}
 
 module Day6 where
 
-import Control.Arrow
+import Control.Arrow hiding (arr)
 import Data.Array
 import Data.Char
 import Data.Function
@@ -21,7 +22,7 @@ parser =
   (,) <$> digit <* string ", " <*> digit <* skipSpaces <* eof
 
 parse :: String -> Maybe Point
-parse str = case readP_to_S parser str of
+parse = readP_to_S parser >>> \case
   [(p, "")] -> Just p
   _ -> Nothing
 
@@ -29,12 +30,11 @@ minmax :: Foldable f => f Int -> (Int, Int)
 minmax = (getMin *** getMax) . foldMap (Min &&& Max)
 
 strictMinimumBy :: Ord a1 => (a2 -> a1) -> [a2] -> Maybe a2
-strictMinimumBy key xs = let sr = sortBy (compare `on` key) xs
-  in
-  case sr of
-  (x:y:_) | key x == key y -> Nothing
-  (x:_) -> Just x
-  _ -> Nothing
+strictMinimumBy key =
+  sortBy (compare `on` key) >>> \case
+    (x:y:_) | key x == key y -> Nothing
+    (x:_) -> Just x
+    _ -> Nothing
 
 findClosest :: (Ord a, Num a) => [(a, a)] -> (a, a) -> Maybe Char
 findClosest points (x, y) =
