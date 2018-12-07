@@ -5,33 +5,35 @@
 module Day7 (day7) where
 
 import Control.Arrow
+import Control.Monad.State
 import Data.Maybe
 import Data.List
 import Data.Tuple
 
 import qualified Data.Map as M
-import Text.ParserCombinators.ReadP
+import Text.ParserCombinators.ReadP hiding (get)
+import qualified Text.ParserCombinators.ReadP as P
 
 type Dep = (Char, Char)
 
 parser :: ReadP Dep
 parser = string "Step " >> ((,)
-  <$> (get <* string " must be finished before step ")
-  <*> (get <* string " can begin." <* eof))
+  <$> (P.get <* string " must be finished before step ")
+  <*> (P.get <* string " can begin." <* eof))
 
 parse :: String -> Maybe Dep
 parse = readP_to_S parser >>> \case
   [(d, "")] ->  Just d
   _ -> Nothing
 
-topo :: M.Map Char [Char] -> [Char]
-topo deps | M.null deps = []
+topo :: M.Map Char [Char] -> State () [Char]
+topo deps | M.null deps = pure []
 topo deps =
   -- find the smallest key wth no values
   let next = minimum . map fst . filter (null . snd) $ M.toList deps
   in
   -- return the smallest, and remove this step from the map
-  next : (topo $ fmap (delete next) $ M.delete next deps)
+  (next :) <$> (topo $ fmap (delete next) $ M.delete next deps)
 
 day7 :: IO ()
 day7 = do
@@ -41,4 +43,5 @@ day7 = do
   -- make a map from step to its dependencies, and make sure to add in
   -- starting-points
   let m = M.fromListWith (++) d `M.union` M.fromList [(x, []) | x <- steps]
-  print $ "Part1: " <> topo m
+  let (res, st) = runState (topo m) ()
+  putStrLn $ "Part1: " <> res <> ", " <> show st
