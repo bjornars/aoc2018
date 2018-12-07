@@ -7,7 +7,7 @@ module Day7 (day7) where
 
 import Control.Arrow
 import Control.Monad
-import Control.Monad.State
+import Control.Monad.RWS
 import Control.Lens
 import Data.Char
 import Data.Maybe
@@ -17,8 +17,6 @@ import Data.Tuple
 import qualified Data.Map as M
 import Text.ParserCombinators.ReadP hiding (get)
 import qualified Text.ParserCombinators.ReadP as P
-
-import Debug.Trace
 
 type Dep = (Char, Char)
 
@@ -33,38 +31,47 @@ parse = readP_to_S parser >>> \case
   _ -> Nothing
 
 data Workers = Workers {
-  _numWorkers :: Int,
   _progress :: [(Char, Int)],
   _timeElapsed :: Int
   } deriving Show
 
+data Config = Config {
+  _numWorkers :: Int,
+  _costMod :: Int -> Int
+  }
+
+type Log = [String]
+type DepMap a = M.Map a [a]
+
 makeClassy ''Workers
+makeClassy ''Config
 
-cost :: Char -> Int
-cost c = ord c - ord 'A' + 1 + 60
+getCost :: Char -> Int
+getCost c = ord c - ord 'A' + 1
 
-topo :: M.Map Char [Char] -> State Workers [Char]
+topo :: DepMap Char -> RWS Config Log Workers [Char]
 topo deps = do
-  n <- use numWorkers
+  n <- view numWorkers
+  cost' <- view costMod
   tasks  <- use progress
   timeElapsed += 1
   let (done, tasks') = tick tasks
   let open = n - length tasks'
 
   unless (null done) $ do
-    traceM $ "we are done with " <> show done
-    traceM $ "and have " <> show n <> " open tasks"
+    tell ["we are done with " <> show done]
+    tell ["and have " <> show n <> " open tasks"]
 
   -- remove the newly done from the dependecy lists
   let deps' = fmap (filter (not.(`elem` done))) deps
 
   -- take new tasks to fill `open` number of spots
   let next = take open . sort . map fst . filter (null . snd) $ M.toList deps'
-  let newTasks = tasks' <> ((id &&& cost) <$> next)
+  let newTasks = tasks' <> ((id &&& cost' . getCost) <$> next)
   progress .= newTasks
 
   unless (null next) $
-    traceM $ "taking new tasks: " <> show next
+    tell ["taking new tasks: " <> show next]
   -- remove the newly taken from deps
   let deps'' = foldr M.delete deps' next
 
@@ -86,6 +93,12 @@ day7 = do
   let d = fmap asList . swap <$> deps where asList a = [a]
   -- make a map from step to its dependencies, and make sure to add in
   -- starting-points
-  let m = M.fromListWith (++) d `M.union` M.fromList [(x, []) | x <- steps]
-  let (res, st) = runState (topo m) (Workers 5 [] (-1))
-  putStrLn $ "Part1: " <> res <> ", " <> show st
+  let computation = topo $ M.fromListWith (++) d `M.union` M.fromList [(x, []) | x <- steps]
+  let initState = Workers [] (-1)
+  let (res, st, log) = runRWS computation (Config 1 id) initState
+  -- putStrLn `mapM_` log
+  putStrLn $ "Part1: " <> res
+
+  let (res, st, log) = runRWS computation (Config 5 (+60)) initState
+  -- putStrLn `mapM_` log
+  putStrLn $ "Part2: " <> res <> " in " <> show (st ^. timeElapsed) <> "s"
