@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -15,7 +14,13 @@ instance Functor Node where
   fmap f (Node ns xs) = Node (fmap f <$> ns) (fmap f xs)
 
 instance Foldable Node where
-  foldMap f (Node ns xs) = mconcat (foldMap f <$> ns) <> (foldMap f xs)
+  foldMap f (Node ns xs) = mconcat (foldMap f <$> ns) <> foldMap f xs
+
+
+value (Node [] xs) = sum xs
+value (Node ns xs) = sum (value <$> nodes)
+  where count xs a = length $ filter (==a) xs
+        nodes = concat $ zipWith replicate (count xs <$> [1..]) ns
 
 type Parser i o = State [i] o
 
@@ -49,6 +54,8 @@ runParser parser input =
 day8 = do
   input <- traverse (readMaybe @Int) . words <$> readFile "data/day8.txt"
   let tree = input >>= runParser parseNode
-  case sum <$> tree of
-    Just n -> putStrLn $ "Part 1: " <> show n
+  case tree of
+    Just n -> do
+      putStrLn $ "Part 1: " <> show (sum n)
+      putStrLn $ "Part 2: " <> show (value n)
     Nothing -> putStrLn "Parse error, somewhere"
