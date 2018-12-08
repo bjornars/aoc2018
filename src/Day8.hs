@@ -6,7 +6,7 @@ module Day8 where
 import Control.Monad.State
 import Data.Monoid
 
-import Text.Read hiding (get)
+import Text.Read hiding (lift, get)
 
 data Node a = Node [Node a] [a] deriving (Show)
 
@@ -22,12 +22,17 @@ value (Node ns xs) = sum (value <$> nodes)
   where count xs a = length $ filter (==a) xs
         nodes = concat $ zipWith replicate (count xs <$> [1..]) ns
 
-type Parser i o = State [i] o
+type ParseError = String
+type Parser i o = StateT [i] (Either ParseError) o
 
+
+err :: String -> Parser a b
+err str = lift $ Left str
 
 eat :: Int -> Parser i [i]
 eat n = do
   input <- get
+  when (n > length input) $ err "ran out of input"
   let (xs, rest) = splitAt n input
   put rest
   return xs
@@ -44,18 +49,20 @@ parseNode = do
   return $ Node children metadata
 
 
-runParser :: Parser Int (Node Int) -> [Int] -> Maybe (Node Int)
-runParser parser input =
-  let (result, remainingState) = runState parser input
-  in
-  if null remainingState then Just result
-  else Nothing
+runParser :: Parser Int (Node Int) -> [Int] -> Either ParseError (Node Int)
+runParser parser input = do
+  (result, remainingState) <- runStateT parser input
+  if null remainingState then Right result
+  else Left "too much input"
+
+note :: a -> Maybe b -> Either a b
+note msg = maybe (Left msg) Right
 
 day8 = do
-  input <- traverse (readMaybe @Int) . words <$> readFile "data/day8.txt"
+  input <- note "couldnt parse file" . traverse (readMaybe @Int) . words <$> readFile "data/day8.txt"
   let tree = input >>= runParser parseNode
   case tree of
-    Just n -> do
+    Right n -> do
       putStrLn $ "Part 1: " <> show (sum n)
       putStrLn $ "Part 2: " <> show (value n)
-    Nothing -> putStrLn "Parse error, somewhere"
+    Left err -> putStrLn err
