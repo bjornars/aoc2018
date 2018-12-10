@@ -62,11 +62,13 @@ localMinima by xs@(x:_) = go xs (by x + 1) []
       then go xs bx (x:take 1 prev)
       else x:prev
 
-printSolution points =
+printSolution (gen, points) =
   let ((x1, y1), (x2, y2)) = boundingBox points
       translated = ((subtract x1) *** (subtract y1)) <$> points
       arr = listArray ((0, 0), (y2-y1, x2-x1)) $ repeat ' '
-  in printArr $ arr // zip (swap <$> translated) (repeat '\x2588')
+  in do
+    putStrLn ("Gen #" <> show gen)
+    printArr $ arr // zip (swap <$> translated) (repeat '\x2588')
 
 printArr :: Array (Int, Int) Char -> IO ()
 printArr arr =
@@ -78,9 +80,9 @@ dayA = do
   input <- lines <$> readFile "data/dayA.txt"
   let parsed = fromJust . traverse parse $ input
   let (positions, velocities) = (fst <$> parsed, snd <$> parsed)
-  let it = zipWith ($) velocities
+  let it = (+1) *** zipWith ($) velocities
   print $ bsize $ boundingBox positions
-  let smallest = localMinima (bsize.boundingBox) $ iterate it positions
+  let smallest = localMinima (bsize.boundingBox.snd) $ iterate it (0, positions)
   let extended = reverse smallest <> take 2 (iterate it (head smallest))
   putStrLn "Part1: "
   traverse_ printSolution extended
