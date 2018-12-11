@@ -14,17 +14,17 @@ cell serial x y = let
   in
   hundreds p'
 
-focus (x, y) = [(x+dx, y+dy) | dx <- [0,1,2], dy <- [0,1,2]]
+focus n (x, y) = [(x+dx, y+dy) | dx <- [0..n-1], dy <- [0..n-1]]
 shrink n ((a,b), (c,d)) = ((a,b), (c-n, d-n))
 
 dayB = do
-  let b = ((1,1), (300,300))
   let serial = 9810
+  print $ findBiggest serial 3
 
-  let arr = array b [uncurry (cell serial) <$> (xy, xy) | xy <- range b]
+findBiggest serial size =
+  let b = ((1,1), (300, 300))
+      arr = array b [uncurry (cell serial) <$> (xy, xy) | xy <- range b]
+      newBounds = shrink size b
+      sumArr = array newBounds [(xy, sum $ fmap (arr!) (focus size xy)) | xy <-range newBounds]
 
-  let newBounds = shrink 2 b
-  let sumArr = array newBounds [(xy, sum $ fmap (arr!) (focus xy)) | xy <-range newBounds]
-
-  let biggest = maximumBy (compare `on` snd) (assocs sumArr)
-  print biggest
+  in maximumBy (compare `on` snd) (assocs sumArr)
