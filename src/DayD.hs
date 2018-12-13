@@ -28,7 +28,7 @@ makeLenses ''Cart
 
 type Track = [Dim]
 
-turn x S = x
+turn x   S = x
 turn 'v' L = '>'
 turn 'v' R = '<'
 turn '^' L = '<'
@@ -61,16 +61,19 @@ inc '^' = second (subtract 1)
 inc '>' = first (+1)
 inc '<' = first (subtract 1)
 
-step n@(Cart _ c _) = n & cix %~ inc c
+run :: Cart -> Char -> Cart
+run n c = n & cchar .~ c & cix %~ inc c
 
-curve '/'  n@(Cart _ '>' _) = n & cchar .~ '^' & cix %~ inc '^'
-curve '/'  n@(Cart _ '<' _) = n & cchar .~ 'v' & cix %~ inc 'v'
-curve '\\' n@(Cart _ '>' _) = n & cchar .~ 'v' & cix %~ inc 'v'
-curve '\\' n@(Cart _ '<' _) = n & cchar .~ '^' & cix %~ inc '^'
-curve '/'  n@(Cart _ '^' _) = n & cchar .~ '>' & cix %~ inc '>'
-curve '/'  n@(Cart _ 'v' _) = n & cchar .~ '<' & cix %~ inc '<'
-curve '\\' n@(Cart _ '^' _) = n & cchar .~ '<' & cix %~ inc '<'
-curve '\\' n@(Cart _ 'v' _) = n & cchar .~ '>' & cix %~ inc '>'
+curve track n@(Cart _ dir _) = run n . fromJust $ lookup (dir, track) turns
+  where
+    turns = [ (('>', '/' ), '^')
+            , (('<', '/' ), 'v')
+            , (('>', '\\'), 'v')
+            , (('<', '\\'), '^')
+            , (('^', '/' ), '>')
+            , (('v', '/' ), '<')
+            , (('^', '\\'), '<')
+            , (('v', '\\'), '>')]
 
 
 processMove :: Arr -> Cart -> Cart
@@ -80,7 +83,8 @@ processMove arr next = case arr ! (_cix next) of
   '/' -> curve '/' next
   '\\' -> curve '\\' next
   '+' -> intersection next
-  where intersection cart@(Cart ix' c (d:dir)) =
+  where step n@(Cart _ c _) = run n c
+        intersection cart@(Cart ix' c (d:dir)) =
           let c' = turn c d in
               cart & cchar .~ c' & cix %~ inc c' & cdir .~ dir
 
