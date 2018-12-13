@@ -7,9 +7,9 @@ import Control.Arrow
 import Control.Monad
 import Control.Lens
 import Data.Array
-import Data.List (findIndex, sortBy, transpose)
+import Data.List (find, findIndex, sortBy, transpose)
 import Data.Function (on)
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes, fromJust, isJust)
 
 import Debug.Trace
 
@@ -40,15 +40,20 @@ turn '>' R = 'v'
 
 findCollision :: Arr -> [Cart] -> Dim
 findCollision arr carts = traceShow carts $ go (sortBy (compare `on` _cix) carts) []
-  where go [] [] = undefined
+  where go :: [Cart] -> [Cart] -> Dim
+        go [] [] = undefined
         go [] processed = findCollision arr processed
+        go [survivor] [] = traceShow " one left " $  _cix survivor
         go (next: rest) processed =
           let next' = processMove arr next
-          in if collisions next' (rest <> processed)
-                then _cix next'
-                else go rest (processed <> [next'])
+              colliders = collisions next (rest <> processed)
+          in if (null colliders)
+                then go rest (processed <> [next'])
+                else let strip xs = [x | x <- xs, isJust $ find ((/=_cix x)._cix) colliders]
+                         in (go `on` strip) rest processed
 
-collisions x xs = let x' = _cix x in any ((==x')._cix) xs
+collisions :: Cart -> [Cart] -> [Cart]
+collisions x xs = let x' = _cix x in filter ((==x')._cix) xs
 
 inc :: Char -> (Int, Int) -> (Int, Int)
 inc 'v' = second (+1)
@@ -100,5 +105,5 @@ dayD = do
 
   let arr' = cartToLine <$> arr
   let ix = findCollision arr' carts
-  putStr "Part 1: "
+  putStr "Part 2: "
   print $ ((subtract 1) *** (subtract 1)) ix
