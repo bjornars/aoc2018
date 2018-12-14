@@ -39,9 +39,6 @@ runParser parser = readP_to_S (parser) >>> \case
   [(res, _)] -> Right res
   [] -> Left "no parse"
 
-note :: a -> Maybe b -> Either a b
-note msg = maybe (Left msg) Right
-
 day8 = do
   input <- readFile "data/day8.txt"
   let tree = runParser parseNode (' ': input)
