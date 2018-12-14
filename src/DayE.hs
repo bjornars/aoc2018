@@ -23,8 +23,16 @@ rxAtPos idx = (`S.index` idx) <$> use rxs
 circulate :: Int -> Int -> Int -> Int
 circulate a n c = (1 + c + a) `mod` n
 
-recipize :: Int -> State Kitchen (S.Seq Int)
-recipize lim = do
+endsWith :: Eq a => Seq a -> Seq a -> Bool
+endsWith haystack needle = let hl = S.length haystack in
+  S.drop (hl - S.length needle) haystack == needle
+
+dropR :: Seq a -> Seq a
+dropR (xs :|> _) = xs
+dropR _ = undefined
+
+recipize :: S.Seq Int -> State Kitchen Int
+recipize goal = do
   -- (,) <$> use elfs <*> use rxs >>= traceShowM
   (e1, e2) <- use elfs
   crx1 <- rxAtPos e1
@@ -40,12 +48,17 @@ recipize lim = do
   elfs._1 %= circulate crx1 slen
   elfs._2 %= circulate crx2 slen
 
-  if slen >= (10 + lim)
-    then use rxs >>= pure . S.take 10 . S.drop lim
-    else recipize lim
+  r <- use rxs
+  if r `endsWith` goal
+    then pure $ S.length r - S.length goal
+    else
+      -- special handling for when we add two recipes at the same time
+      if s1 /= 0 && dropR r `endsWith` goal
+        then pure $ S.length r - S.length goal - 1
+    else recipize goal
 
 dayE :: IO ()
 dayE = do
   let freshKitchen = Kitchen (S.fromList [3,7]) (0, 1)
-  let res = evalState (recipize 430971) freshKitchen
-  printf "Part 1: %s\n" $ concat $ show <$> res
+  let res = evalState (recipize $ S.fromList [4,3,0,9,7,1]) freshKitchen
+  printf "Part 2: %s\n" $ show res
