@@ -94,7 +94,8 @@ makePrisms ''Faction
 
 data Actor = Actor { _faction :: Faction,
                      _coords  :: Coord,
-                     _hp      :: Int
+                     _hp      :: Int,
+                     _atk     :: Int
                    } deriving (Eq, Show)
 
 data BType  = Wall | Open deriving Eq
@@ -132,8 +133,8 @@ printa :: Actor -> String -> M ()
 printa a str = pure () -- traceM $ showa a <> str
 
 getActor :: ((Int, Int), Either Char a) -> Maybe Actor
-getActor (ix, Left 'E') = Just $ Actor Elf ix 200
-getActor (ix, Left 'G') = Just $ Actor Goblin ix 200
+getActor (ix, Left 'E') = Just $ Actor Elf ix 200 15
+getActor (ix, Left 'G') = Just $ Actor Goblin ix 200 3
 getActor _              = Nothing
 
 parse :: [String] -> Game
@@ -206,7 +207,7 @@ attack a xs zs enemies = do
       -- when (length targets > 1) $ traceM $ show a <> " have " <> show tt
       -- when (length targets > 1) $ traceM $ show a <> " aming at " <> show targets
       let v = swings `swing` targets'
-      let (res, v') = v & hp <-~ 3
+      let (res, v') = v & hp <-~ (a^.atk)
       --traceM $ show a <> " swings at " <> show v <> ", and became " <> show v'
       if True && res >= 0
         then do
@@ -295,7 +296,13 @@ dayF = do
 
 run :: IO [String] -> String -> IO ()
 run input expected = do
-  g <- parse <$> input >>= execStateT play
+  g' <- parse <$> input
+  g <- execStateT play g'
+  printf "We lost %d elves" (
+      length (filter (has (faction._Elf)) (g'^.actors))
+       -
+      length (filter (has (faction._Elf)) (g^.actors))
+    )
   print $ g^.ticks
   print $ sum ((^.hp) <$> (g^.actors))
   printf "Part1:    %d\n" $ g^.ticks * sum ((^.hp) <$> (g^.actors))
