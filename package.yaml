@@ -25,6 +25,10 @@ dependencies:
 - array
 - mtl
 - lens
+- astar
+- unordered-containers
+
+extra-dependencies:
 
 library:
   source-dirs: src
