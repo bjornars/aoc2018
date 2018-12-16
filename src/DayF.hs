@@ -11,6 +11,7 @@ import           Control.Monad
 import           Control.Monad.State
 import           Data.Array          hiding (inRange)
 import           Data.Either
+import           Data.Foldable (toList)
 import           Data.Function
 import           Data.List
 import           Data.Maybe
@@ -128,7 +129,8 @@ showa :: Actor -> String
 showa a = printf "%c%s " (if a^.faction == Goblin then 'G' else 'E') (showc (a^.coords))
 
 printa :: Actor -> String -> M ()
-printa a str = traceM $ showa a <> str
+printa a str = pure () -- traceM $ showa a <> str
+
 getActor :: ((Int, Int), Either Char a) -> Maybe Actor
 getActor (ix, Left 'E') = Just $ Actor Elf ix 200
 getActor (ix, Left 'G') = Just $ Actor Goblin ix 200
@@ -269,18 +271,12 @@ play :: M ()
 play = do
   -- play one round
   t <- use ticks
-  traceM $ "Round " <> show t
+  -- traceM $ "Round " <> show t
   as <- use actors
-  when (t == 8) $ do
-    use game >>= liftIO . printGame
-
   as' <- processTurn (playOrder as) []
   actors .= filter ((>0) . (^.hp)) as'
 
-  when (t == 8) $ do
-    use game >>= liftIO . printGame
-
-  traceM $ replicate 20 '-'
+  -- traceM $ replicate 20 '-'
   d <- use done
   when (not d) $ do
     ticks +=1
@@ -306,19 +302,19 @@ run input expected = do
   printf "Expected: %s\n" expected
 
 
-tt :: String -> a -> a
-tt string expr = unsafePerformIO $ do
-    putStrLn string
-    return expr
-
 bfs :: Coord -> [Coord] -> [Coord] -> Maybe Coord
 bfs start open goals = go S.empty (Q.singleton [start])
   where go :: S.Set Coord -> Q.Seq [Coord] -> Maybe Coord
         go _ Empty = Nothing
         go seen (check :<| todo) =
-          let l = last check in
-          if l `elem` goals
-            then tt ("found a goal " <> show l <> " " <> show check)  Just $ check !! 1
+          let l = last check
+              lWin = if l `elem` goals then [check] else []
+              swop (x, y) = (y, x)
+              allWins = lWin <> toList (Q.filter (\t -> last t `elem` goals && length t == length check) todo)
+              bestWin = sortBy (compare `on` (swop . last)) allWins
+          in
+          if not $ null bestWin
+            then Just $ (head bestWin) !! 1
             else let x = Q.fromList . filter (`S.notMember` seen)
                         . filter (`elem` open) $ inRange l
                      addCheck n = check <> [n]
