@@ -163,7 +163,10 @@ spillSideways dir bb@(bucketY, bucketX) = do
   -- liftIO . putStrLn $ "spill sideways" <> show dir <> " " <> show bb
   -- liftIO . putStrLn $ show wr
 
-  if not $ inRange bounds' bb || bucketY == (fst.snd) bounds'
+  if bb `S.member` ws
+    then pure ()
+
+  else if not $ inRange bounds' bb || bucketY == (fst.snd) bounds'
     then pure ()
 
   else if b ! bb == Clay
@@ -188,7 +191,11 @@ printGame = do
                   . assocs $ watered
   let pBlock = show . snd
   let lines' = (fmap.concatMap) pBlock blocks
-  (liftIO $ putStrLn "") >> mapM_ (liftIO .putStrLn) lines' -- (take 100 lines')
+  (liftIO $ putStrLn "") >> mapM_ (liftIO .putStrLn)
+      (
+      -- take 100
+      lines'
+      )
 
 dayH :: IO ()
 dayH = do
@@ -208,12 +215,15 @@ dayH = do
   let game = readGame . fromJust . traverse (parse parseLine) $ input
   let fresh = SS game S.empty S.empty
   print $ bounds game
-  void $ evalStateT printGame fresh
+  -- void $ evalStateT printGame fresh
   -- print . take 100 $ assocs game
   game' <- execStateT (fillDown (0, 500)) fresh
   void $ evalStateT printGame game'
   let smallestY = minimum $ fmap (fst.fst) . filter ((==Clay) . snd) . assocs $ game'^.board
   let waters = (game'^. wstill) `S.union` (game'^. wrun)
-  
+
   putStr "Part1: "
   print . S.size . S.filter ((>=smallestY).fst) $ waters
+
+  putStr "Part2: "
+  print . S.size . S.filter ((>=smallestY).fst) $ (game'^. wstill)
