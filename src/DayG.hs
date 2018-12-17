@@ -25,8 +25,6 @@ load addr = gets (^?! ix addr)
 store :: Int -> Int -> O ()
 store addr val = modify (set (ix addr) val)
 
-flag :: Bool -> O Int
-flag = pure . bool 0 1
 
 data Op = Op { _name :: String
              , _opcode :: Maybe Int
@@ -36,24 +34,32 @@ instance Show Op where
   show (Op name code _) = "Op(" <> show name <> ", " <> show (fromMaybe (-1) code) <> ")" 
 makeLenses ''Op
 
+rr, ri, ir :: (Int -> Int -> Int) -> (Int, Int, Int) -> O ()
+rr binop (x, y, c) = binop <$> load x <*> load y >>= store c
+ri binop (x, y, c) = binop <$> load x <*> pure y >>= store c
+ir binop (x, y, c) = binop <$> pure x <*> load y >>= store c
+
+flag :: (Int -> Int -> Bool) -> (Int -> Int -> Int)
+flag binop  = binop >:> bool 0 1
+
 ops :: [Op]
 ops =
-   [Op "addr" Nothing (\(x, y, c) -> (+) <$> load x <*> load y >>= store c)
-  , Op "addi" Nothing (\(x, y, c) -> (+) <$> load x <*> pure y >>= store c)
-  , Op "mulr" Nothing (\(x, y, c) -> (*) <$> load x <*> load y >>= store c)
-  , Op "muli" Nothing (\(x, y, c) -> (*) <$> load x <*> pure y >>= store c)
-  , Op "banr" Nothing (\(x, y, c) -> (.&.) <$> load x <*> load y >>= store c)
-  , Op "bani" Nothing (\(x, y, c) -> (.&.) <$> load x <*> pure y >>= store c)
-  , Op "borr" Nothing (\(x, y, c) -> (.|.) <$> load x <*> load y >>= store c)
-  , Op "bori" Nothing (\(x, y, c) -> (.|.) <$> load x <*> pure y >>= store c)
+   [Op "addr" Nothing (rr (+))
+  , Op "addi" Nothing (ri (+))
+  , Op "mulr" Nothing (rr (*))
+  , Op "muli" Nothing (ri (*))
+  , Op "banr" Nothing (rr (.&.))
+  , Op "bani" Nothing (ri (.&.))
+  , Op "borr" Nothing (rr (.|.))
+  , Op "bori" Nothing (ri (.|.))
   , Op "setr" Nothing (\(x, _, c) -> load x >>= store c)
   , Op "seti" Nothing (\(x, _, c) -> pure x >>= store c)
-  , Op "gtir" Nothing (\(x, y, c) -> (>) <$> pure x <*> load y >>= flag >>= store c)
-  , Op "gtri" Nothing (\(x, y, c) -> (>) <$> load x <*> pure y >>= flag >>= store c)
-  , Op "gtrr" Nothing (\(x, y, c) -> (>) <$> load x <*> load y >>= flag >>= store c)
-  , Op "eqir" Nothing (\(x, y, c) -> (==) <$> pure x <*> load y >>= flag >>= store c)
-  , Op "eqri" Nothing (\(x, y, c) -> (==) <$> load x <*> pure y >>= flag >>= store c)
-  , Op "eqrr" Nothing (\(x, y, c) -> (==) <$> load x <*> load y >>= flag >>= store c)
+  , Op "gtir" Nothing (ir (flag (>)))
+  , Op "gtri" Nothing (ri (flag (>)))
+  , Op "gtrr" Nothing (rr (flag (>)))
+  , Op "eqir" Nothing (ir (flag (==)))
+  , Op "eqri" Nothing (ri (flag (==)))
+  , Op "eqrr" Nothing (rr (flag (==)))
   ]
 
 type Case = ([Int], [Int], Int, (Int, Int, Int))
