@@ -65,7 +65,11 @@ dayI = do
   let game = listArray ((1, 1), (length input, length (head input))) cells
   pprint (length (head input)) $ elems game
 
-  let res = iterate gen game !!  10
+  let res = iterate gen game !! 10
   print $ replicate 20 '*'
   pprint (length (head input)) $ elems res
   putStrLn $ "Part1: " <> show (count Tree (elems res) * count Mill (elems res))
+
+  -- cycle was 20 + 28n starting at ~430, i am getting lazy
+  let res = iterate gen game !! 440
+  putStrLn $ "Part2: " <> show (count Tree (elems res) * count Mill (elems res))
