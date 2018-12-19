@@ -4,6 +4,7 @@ import Data.Array.Unboxed
 import Data.Bifunctor
 import Data.Function
 import Data.Foldable
+import Control.Arrow
 
 hundreds :: Int -> Int
 hundreds p = (-5 +) $ (p `mod` 1000) `div` 100
@@ -18,19 +19,24 @@ cell serial x y = let
 focus n (x, y) = [(x+dx, y+dy) | dx <- [0..n-1], dy <- [0..n-1]]
 shrink n ((a,b), (c,d)) = ((a,b), (c-n, d-n))
 
+b = ((1,1), (300, 300))
+mk_arr :: Int -> UArray (Int, Int) Int
+mk_arr serial = array b [uncurry (cell serial) <$> (xy, xy) | xy <- range b]
+
 dayB = do
-  let serial = 9810
   -- the matrix is heavily biased to negative numbers, so no need to go
   -- too high. I aso havent got all day.
-  let maxima = (second $ findBiggest serial) <$> [(x, x) | x <- [1..30]]
-  mapM_ print maxima
-  print $ (\(n, ((x, y), _)) -> (x, y, n)) $ maximumBy (compare `on` (snd.snd)) maxima
+  let arr = mk_arr 9810
+  putStrLn $ "Part 1: " <> show (findBiggest arr 3)
 
-findBiggest serial size =
-  let b = ((1,1), (300, 300))
-      arr :: UArray (Int, Int) Int
-      arr = array b [uncurry (cell serial) <$> (xy, xy) | xy <- range b]
-      newBounds = shrink size b
+  let maxima = (id &&& findBiggest arr) <$> [x | x <- [1..15]]
+  let biggestest = (\(n, ((x, y), _)) -> (x, y, n)) $ maximumBy (compare `on` (snd.snd)) maxima
+
+
+  putStrLn $ "Part 2: " <> show biggestest
+
+findBiggest arr size =
+  let newBounds = shrink size b
       sumArr = [(xy, sum $ fmap (arr!) (focus size xy)) | xy <-range newBounds]
 
   in maximumBy (compare `on` snd) (sumArr)
