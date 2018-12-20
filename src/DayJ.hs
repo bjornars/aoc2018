@@ -122,8 +122,8 @@ dayJ = do
   printf "Part1: %d\n" (res !! 0)
 
   (res, _) <- execRWST (step 0) rom [1,0,0,0,0,0]
-  let fuckyprime = res !! 2
-  let factors = prime_factors fuckyprime
+  let bigcomposite = res !! 2
+  let factors = prime_factors bigcomposite
   let divisors = get_divisors factors
   printf "Part2: %d\n" (sum divisors)
 
