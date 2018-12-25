@@ -1,41 +1,37 @@
-{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeApplications         #-}
 {-# OPTIONS_GHC -Wall              #-}
 
 module DayO where
 
-import Control.Arrow ((***))
-import Control.Monad (void)
-import Control.Lens hiding ((...))
-import Control.Monad.State
+import           Control.Lens                 hiding ((...))
+import           Control.Monad                (void)
+import           Control.Monad.State
 
-import Data.Bool
-import Data.Function (on)
-import Data.List (delete, find, elemIndex, sortBy, maximumBy)
-import Data.Maybe (fromJust)
-import Data.Tuple (swap)
-import Debug.Trace hiding (traceM)
+import           Data.Function                (on)
+import           Data.List                    (delete, elemIndex, find,
+                                               maximumBy, sortBy)
+import           Data.Maybe                   (fromJust)
+import           Data.Tuple                   (swap)
 
-import Text.ParserCombinators.ReadP
-import Text.Printf
-import Lib
+import           Lib
+import           Text.ParserCombinators.ReadP
+import           Text.Printf
 
 data DmgType = Blunt | Sharp | Cold | Fire | Radiation deriving (Eq, Show)
 data Faction = Good | Bad deriving (Eq, Show)
 type Weakness = [DmgType]
 type Immunity = [DmgType]
 data Units = Units {
-  _uid :: Int,
-  _ufaction :: Faction,
-  _uno :: Int,
-  _uhp :: Int,
-  _uinit :: Int,
+  _uid       :: Int,
+  _ufaction  :: Faction,
+  _uno       :: Int,
+  _uhp       :: Int,
+  _uinit     :: Int,
   _uweakness :: [DmgType],
   _uimmunity :: [DmgType],
-  _udmgtype :: DmgType,
-  _udmg :: Int
+  _udmgtype  :: DmgType,
+  _udmg      :: Int
   } deriving (Eq, Show)
 
 data Game = Game { _forces :: [Units] }
@@ -101,7 +97,7 @@ line faction = do
 splitOnEmpty :: [String] -> ([String], [String])
 splitOnEmpty xs =
   case elemIndex "" xs of
-    Just i -> (take i xs, drop (i+1) xs)
+    Just i  -> (take i xs, drop (i+1) xs)
     Nothing -> (xs, [])
 
 dayO :: IO ()
@@ -112,9 +108,7 @@ dayO = do
         mappend <$> traverse (parse (line Good)) (drop 1 immune)
                 <*> traverse (parse (line Bad)) (drop 1 infection)
 
-  print units
   let ided_units = zipWith (\num unit -> unit & uid .~ num) [1..] units
-  traverse print ided_units
   res <- evalStateT play (Game ided_units)
   printf "Part1: %d\n" (either id id res)
   part2 ided_units 1
@@ -123,9 +117,6 @@ sortOn :: Ord a => (b -> a) -> [b] -> [b]
 sortOn key = sortBy (compare `on` key)
 maximumOn :: Ord a => (b -> a) -> [b] -> b
 maximumOn key = maximumBy (compare `on` key)
-
-traceM :: (Show a, MonadIO m) => a -> m ()
-traceM = liftIO . print
 
 resistance ::  Units -> Units -> Int
 resistance a t | a^.udmgtype `elem` t^.uweakness = 2
@@ -164,21 +155,15 @@ attack ((a, t): rest) units = let
         ua = get' a
         ut = get' t
         damage = dmg ua ut
-        deaths = traceShow (show a <> " hitting " <> show t <> " for " <> show damage <> " damage, killing " <> show (damage `div` ut^.uhp))
-                            damage `div` ut^.uhp
+        deaths = damage `div` ut^.uhp
         (newno, ut') = ut & uno <-~ deaths
 
 play :: S (Either Int Int)
 play = do
   units <- use forces
-  traceM $ replicate 50 '*'
-  traverse traceM (filter (has (ufaction._Good)) units)
-  traverse traceM (filter (has (ufaction._Bad)) units)
 
   -- acquire
   let target_order = reverse . sortOn (^. uplayOrder) $ units
-  traceM $ replicate 50 '-'
-  traverse traceM target_order
   let attacks = acquire target_order units
   if null attacks
     then let score = sum . map (^.uno) $ units
@@ -197,10 +182,11 @@ play = do
 part2 :: [Units] -> Int -> IO ()
 part2 units boost = do
   let do_boost unit = if unit^.ufaction == Good
-        then unit & udmg +~ boost
-        else unit
+      then unit & udmg +~ boost
+      else unit
+
   let boosted = do_boost <$> units
   res <- evalStateT play (Game boosted)
   case res of
     Left score -> printf "Part2: %d\n" score
-    Right _ -> part2 units (boost + 1)
+    Right _    -> part2 units (boost + 1)
