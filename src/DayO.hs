@@ -117,8 +117,7 @@ dayO = do
   traverse print ided_units
   res <- evalStateT play (Game ided_units)
   printf "Part1: %d\n" (either id id res)
-  pure ()
-
+  part2 ided_units 1
 
 sortOn :: Ord a => (b -> a) -> [b] -> [b]
 sortOn key = sortBy (compare `on` key)
@@ -190,5 +189,18 @@ play = do
     else  do
       let byId x = fromJust $ find (\y -> y^.uid == fst x) units
       let attack_order = reverse . sortOn ((^.uinit) . byId) $ attacks
-      forces .= attack attack_order units
-      play
+      let result = attack attack_order units
+      if result == units -- stale mate
+        then pure $ Right 0
+        else forces .= result >> play
+
+part2 :: [Units] -> Int -> IO ()
+part2 units boost = do
+  let do_boost unit = if unit^.ufaction == Good
+        then unit & udmg +~ boost
+        else unit
+  let boosted = do_boost <$> units
+  res <- evalStateT play (Game boosted)
+  case res of
+    Left score -> printf "Part2: %d\n" score
+    Right _ -> part2 units (boost + 1)
